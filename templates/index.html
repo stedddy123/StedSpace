@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>牛马工作日程</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-1: #0d1117;
+            --bg-2: #161b22;
+            --card: rgba(29, 33, 40, 0.92);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text: #e6edf3;
+            --text-dim: #8b949e;
+            --accent: #ff9f43;
+            --spirit: #4cc9f0;      /* 打工魂 */
+            --slack: #95d5b2;       /* 摸鱼值 */
+            --beast: #ef476f;       /* 牛马指数 */
+            --radius: 14px;
+            --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+        }
+
+        html, body { height: 100%; }
+
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Arial, sans-serif;
+            background: linear-gradient(160deg, var(--bg-1) 0%, var(--bg-2) 60%, #1b2432 100%);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* ===== 主容器：全屏布局 ===== */
+        .app {
+            width: 100%;
+            max-width: 680px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* ===== 顶部标题 ===== */
+        .header {
+            padding: 14px 20px 10px;
+            text-align: center;
+            flex-shrink: 0;
+            background: linear-gradient(180deg, rgba(13,17,23,0.9) 0%, rgba(13,17,23,0) 100%);
+        }
+        .header h1 {
+            font-size: 20px;
+            letter-spacing: 4px;
+            background: linear-gradient(90deg, #ff9f43, #f5c77e);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+        .header p {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 3px;
+            letter-spacing: 1px;
+        }
+
+        /* ===== 状态区（固定不滚动） ===== */
+        .status-panel {
+            flex-shrink: 0;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            margin: 0 20px 10px;
+            padding: 14px 18px;
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(8px);
+        }
+
+        /* 人像 */
+        .portrait-box {
+            position: relative;
+            flex-shrink: 0;
+        }
+        .portrait-box img {
+            width: 88px;
+            height: 88px;
+            border-radius: 18px;
+            object-fit: cover;
+            border: 2px solid var(--card-border);
+            display: block;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        .portrait-box img.switching {
+            opacity: 0;
+            transform: scale(0.92);
+        }
+        .portrait-badge {
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--badge-bg, #4c4c4c);
+            color: #fff;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 3px 12px;
+            border-radius: 12px;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            letter-spacing: 1px;
+        }
+
+        /* 属性条 */
+        .stats {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+            min-width: 0;
+        }
+        .stat-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .stat-label {
+            width: 56px;
+            font-size: 12px;
+            color: var(--text-dim);
+            flex-shrink: 0;
+            text-align: right;
+            white-space: nowrap;
+        }
+        .stat-bar-wrap {
+            flex: 1;
+            height: 10px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+        .stat-bar {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+            position: relative;
+        }
+        .stat-bar::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 55%);
+        }
+        .stat-bar.spirit { background: var(--spirit); }
+        .stat-bar.slack  { background: var(--slack); }
+        .stat-bar.work   { background: var(--beast); }
+        .stat-bar.mind   { background: #c084fc; }
+        .stat-value {
+            width: 36px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: right;
+            flex-shrink: 0;
+            font-variant-numeric: tabular-nums;
+            transition: color 0.3s;
+        }
+        .stat-value.up { color: #95d5b2; }
+        .stat-value.down { color: #ff6b6b; }
+
+        /* ===== 聊天区（唯一滚动区域） ===== */
+        .story {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 20px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            scroll-behavior: smooth;
+        }
+        .story::-webkit-scrollbar { width: 5px; }
+
+
+        .msg {
+            max-width: 88%;
+            padding: 12px 16px;
+            border-radius: 14px;
+            font-size: 14px;
+            line-height: 1.75;
+            animation: msgIn 0.45s ease;
+            word-break: break-word;
+        }
+        @keyframes msgIn {
+            from { opacity: 0; transform: translateY(12px) scale(0.98); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .msg-title {
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            color: var(--accent, var(--accent));
+        }
+        .msg-narration {
+            align-self: flex-start;
+            background: linear-gradient(135deg, rgba(33,38,45,0.95), rgba(24,28,35,0.95));
+            border: 1px solid var(--card-border);
+            border-radius: 4px 14px 14px 14px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+        }
+        .msg-narration .msg-title { color: var(--accent, var(--accent)); }
+        .msg-choice {
+            align-self: flex-end;
+            background: linear-gradient(135deg, rgba(255,159,67,0.22), rgba(255,159,67,0.10));
+            border: 1px solid rgba(255,159,67,0.35);
+            border-radius: 14px 4px 14px 14px;
+            color: #ffd9ad;
+        }
+        .msg-choice::before { content: "你选择 · "; opacity: 0.6; font-size: 12px; }
+        .msg-effect {
+            align-self: center;
+            font-size: 12px;
+            color: var(--text-dim);
+            padding: 3px 14px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            animation: msgIn 0.3s ease;
+        }
+        .msg-system {
+            align-self: center;
+            font-size: 12px;
+            color: var(--text-dim);
+            background: rgba(255,255,255,0.05);
+            padding: 6px 18px;
+            border-radius: 20px;
+        }
+
+        /* ===== 结局卡片 ===== */
+        .ending-card {
+            align-self: center;
+            width: 100%;
+            text-align: center;
+            padding: 26px 22px;
+            background: linear-gradient(160deg, rgba(41,29,20,0.9), rgba(24,22,30,0.9));
+            border: 1px solid rgba(255,159,67,0.35);
+            border-radius: var(--radius);
+            margin: 6px 0;
+            box-shadow: var(--shadow);
+            animation: msgIn 0.5s ease;
+        }
+        .ending-card h2 {
+            font-size: 22px;
+            margin-bottom: 14px;
+            background: linear-gradient(90deg, #ff9f43, #f5c623);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .ending-text { font-size: 14px; line-height: 1.9; margin-bottom: 14px; }
+        .ending-comment {
+            font-size: 13px;
+            color: var(--text-dim);
+            font-style: italic;
+            padding: 10px 14px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+        }
+        .ending-card.perfect {
+            background: linear-gradient(160deg, rgba(255,180,40,0.14), rgba(24,22,30,0.92));
+            border-color: rgba(255,200,80,0.55);
+            box-shadow: 0 8px 40px rgba(255,180,40,0.18);
+        }
+        .ending-card.perfect h2 {
+            background: linear-gradient(90deg, #ffd700, #ffb347, #ffd700);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shine 3s ease-in-out infinite;
+        }
+        @keyframes shine {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.35); }
+        }
+        .auto-tip {
+            font-size: 12px;
+            color: var(--text-dim);
+            text-align: center;
+            padding: 4px 0;
+        }
+        .ending-stats {
+            font-size: 13px;
+            color: var(--text);
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        /* ===== 底部选项区（常驻可见） ===== */
+        .choices-area {
+            flex-shrink: 0;
+            padding: 10px 20px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: linear-gradient(0deg, var(--bg-1) 55%, rgba(13,17,23,0) 100%);
+        }
+        .choice-btn {
+            text-align: left;
+            padding: 12px 16px;
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            line-height: 1.6;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .choice-btn:hover:not(:disabled) {
+            border-color: var(--accent);
+            background: rgba(255,159,67,0.08);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255,159,67,0.15);
+        }
+        .choice-btn:active:not(:disabled) { transform: translateY(0) scale(0.99); }
+        .choice-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .choice-btn .effects-preview {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 3px;
+        }
+        .choice-btn.highlight {
+            text-align: center;
+            border-color: var(--accent);
+            background: linear-gradient(135deg, rgba(255,159,67,0.18), rgba(255,159,67,0.08));
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        /* ===== 加载/其他 ===== */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        .footer-actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding-top: 6px;
+        }
+        .footer-btn {
+            padding: 6px 18px;
+            background: transparent;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .footer-btn:hover { border-color: var(--accent); color: var(--text); }
+
+        @media (max-width: 480px) {
+            .status-panel { margin: 0 12px 8px; padding: 10px 12px; }
+            .portrait-box img { width: 72px; height: 72px; }
+            .story, .choices-area { padding-left: 12px; padding-right: 12px; }
+            .msg { max-width: 92%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- 顶部标题 -->
+        <div class="header">
+            <h1 id="game-title">牛马工作日程</h1>
+            <p id="game-subtitle">加载中...</p>
+        </div>
+
+        <!-- 状态面板：人像 + 属性条（常驻） -->
+        <div class="status-panel">
+            <div class="portrait-box">
+                <img id="portrait-img" src="/static/images/portrait-normal.jpg" alt="打工人像">
+                <div class="portrait-badge" id="portrait-badge">状态还行</div>
+            </div>
+            <div class="stats" id="stats"></div>
+        </div>
+
+        <!-- 聊天区（可滚动） -->
+        <div class="story" id="story"></div>
+
+        <!-- 选项区（固定底部） -->
+        <div class="choices-area">
+            <div id="choices"></div>
+            <div class="toggle-actions">
+                <button class="footer-btn" onclick="resetGame('loop')">重新开始</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStats = {};
+        let statKeys = [];
+        let lastPortraitKey = '';
+
+        const STAT_COLORS = { '打工魂': 'spirit', '摸鱼值': 'slack', '牛马指数': 'work', '精神值': 'mind' };
+        const BADGE_COLORS = {
+            good: '#4cc9f0', normal: '#8b949e', slacking: '#95d5b2',
+            exhausted: '#ff9f43', collapsed: '#ef476f'
+        };
+
+        // === 初始化 ===
+        async function init() {
+            try {
+                const resp = await fetch('/api/state');
+                const data = await resp.json();
+                renderState(data, true);
+            } catch (e) {
+                document.getElementById('story').innerHTML =
+                    '<div class="loading">加载失败，请确认服务已启动</div>';
+            }
+        }
+
+        // === 渲染状态 ===
+        function renderState(data, isInit = false) {
+            if (data.meta) {
+                document.getElementById('game-title').textContent = data.meta.title || '';
+                let s = data.meta.subtitle || '';
+                if (data.loop_count !== undefined) {
+                    s = `第 ${data.loop_count + 1} 轮循环 · ${s}`;
+                }
+                document.getElementById('game-subtitle').textContent = s;
+            }
+            if (data.stats) {
+                updateStats(data.stats, data.effects);
+            }
+            if (data.portrait) {
+                updatePortrait(data.portrait);
+            }
+            document.getElementById('choices').innerHTML = '';
+
+            if (data.is_ending) {
+                renderEnding(data);
+            } else {
+                renderNode(data);
+            }
+        }
+
+        // === 人像切换 ===
+        function updatePortrait(portrait) {
+            const img = document.getElementById('portrait-img');
+            const badge = document.getElementById('portrait-badge');
+
+            if (lastPortraitKey !== portrait.label) {
+                lastPortraitKey = portrait.label;
+                img.classList.add('switching');
+                setTimeout(() => {
+                    img.src = portrait.img;
+                    badge.textContent = portrait.label;
+                    badge.style.setProperty('--badge-bg', BADGE_COLORS[portrait.label] || '#4c4c4c');
+                    img.classList.remove('switching');
+                }, 220);
+            }
+        }
+
+        // === 属性条 ===
+        function updateStats(stats, effects) {
+            currentStats = stats;
+            const container = document.getElementById('stats');
+            container.innerHTML = '';
+
+            Object.entries(stats).forEach(([key, value]) => {
+                const row = document.createElement('div');
+                row.className = 'stat-row';
+
+                const label = document.createElement('span');
+                label.className = 'stat-label';
+                label.textContent = key;
+
+                const barWrap = document.createElement('div');
+                barWrap.className = 'stat-bar-wrap';
+                const bar = document.createElement('div');
+                const pct = Math.max(2, Math.min(100, value));
+                bar.className = 'stat-bar ' + (STAT_COLORS[key] || '');
+                bar.style.width = pct + '%';
+                barWrap.appendChild(bar);
+
+                const val = document.createElement('span');
+                val.className = 'stat-value';
+                val.textContent = value;
+
+                row.appendChild(label);
+                row.appendChild(barWrap);
+                row.appendChild(val);
+                container.appendChild(row);
+
+                if (effects && effects[key]) {
+                    const d = effects[key];
+                    val.classList.add(d > 0 ? 'up' : 'down');
+                    setTimeout(() => val.classList.remove('up', 'down'), 800);
+                }
+            });
+        }
+
+        // === 渲染剧情节点 ===
+        function renderNode(data) {
+            const story = document.getElementById('story');
+            const node = data.node;
+
+            const narration = document.createElement('div');
+            narration.className = 'msg msg-narration';
+            const title = document.createElement('div');
+            title.className = 'msg-title';
+            title.textContent = node.title || '';
+            narration.appendChild(title);
+            narration.appendChild(document.createTextNode(node.text));
+            story.appendChild(narration);
+
+            // 选项按钮（固定底部）
+            const choicesDiv = document.getElementById('choices');
+            node.choices.forEach((choice, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn';
+                let effectText = '';
+                if (choice.effects) {
+                    const parts = [];
+                    for (const [k, v] of Object.entries(choice.effects)) {
+                        parts.push(`${k} ${v > 0 ? '+' : ''}${v}`);
+                    }
+                    effectText = parts.join('  ');
+                }
+                btn.innerHTML = choice.text + (effectText ? `<div class="effects-preview">${effectText}</div>` : '');
+                btn.onclick = () => makeChoice(i, choice.text);
+                choicesDiv.appendChild(btn);
+            });
+
+            scrollBottom();
+        }
+
+        // === 渲染结局 ===
+        function renderEnding(data) {
+            const story = document.getElementById('story');
+
+            if (data.choice_text) {
+                const choiceMsg = document.createElement('div');
+                choiceMsg.className = 'msg msg-choice';
+                choiceMsg.textContent = data.choice_text;
+                story.appendChild(choiceMsg);
+            }
+            if (data.effects) {
+                const parts = [];
+                for (const [k, v] of Object.entries(data.effects)) parts.push(`${k} ${v > 0 ? '+' : ''}${v}`);
+                if (parts.length) {
+                    const effectMsg = document.createElement('div');
+                    effectMsg.className = 'msg-effect';
+                    effectMsg.textContent = parts.join('  ');
+                    story.appendChild(effectMsg);
+                }
+            }
+
+            const card = document.createElement('div');
+            card.className = 'ending-card' + (data.perfect ? ' perfect' : '');
+            card.innerHTML = `
+                <h2>${data.ending.title}</h2>
+                <div class="ending-text">${data.ending.text}</div>
+                <div class="ending-comment">"${data.comment || ''}"</div>
+                <div class="ending-stats">最终属性：${Object.entries(data.stats).map(([k, v]) => `${k} ${v}`).join('　')}</div>
+                ${data.perfect ? '<div class="auto-tip">你成功跳出了周五的循环！这个周末，真正属于你。</div>' : ''}
+            `;
+            story.appendChild(card);
+
+            const choicesDiv = document.getElementById('choices');
+            choicesDiv.innerHTML = '';
+
+            if (data.perfect) {
+                // 完美结局：跳出循环，可开启全新旅程
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn highlight';
+                btn.textContent = '开启全新旅程';
+                btn.onclick = () => resetGame('fresh');
+                choicesDiv.appendChild(btn);
+            } else if (data.game_over) {
+                // 无尽循环：精神值爆表，游戏结束，不再自动进入下一轮
+                const overTip = document.createElement('div');
+                overTip.className = 'auto-tip';
+                overTip.textContent = '精神值爆表，你已陷入无尽循环 —— 游戏结束。';
+                choicesDiv.appendChild(overTip);
+
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn highlight';
+                btn.textContent = '重新开始（全新旅程）';
+                btn.onclick = () => resetGame('fresh');
+                choicesDiv.appendChild(btn);
+            } else {
+                // 普通结局：5 秒倒计时结束后自动进入下一轮循环（保留对话记录）
+                const loopTip = document.createElement('div');
+                loopTip.className = 'auto-tip';
+                loopTip.id = 'auto-tip';
+                loopTip.textContent = '本日循环结束，5 秒后自动进入下一轮循环...';
+                choicesDiv.appendChild(loopTip);
+
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn highlight';
+                btn.textContent = '立即进入下一轮';
+                btn.onclick = () => resetGame('loop');
+                choicesDiv.appendChild(btn);
+
+                startAutoCountdown(data.loop_count || 0);
+            }
+
+            scrollBottom();
+        }
+
+        // === 结局 5 秒倒计时自动进入下一轮 ===
+        let autoTimer = null;
+        function startAutoCountdown(loopCount) {
+            if (autoTimer) clearInterval(autoTimer);
+            let left = 5;
+            const tip = document.getElementById('auto-tip');
+            if (tip) tip.textContent = `${left} 秒后自动进入第 ${loopCount + 2} 轮循环...`;
+            autoTimer = setInterval(() => {
+                left--;
+                if (left <= 0) {
+                    clearInterval(autoTimer);
+                    autoTimer = null;
+                    resetGame('loop', true);
+                } else if (tip) {
+                    tip.textContent = `${left} 秒后自动进入第 ${loopCount + 2} 轮循环...`;
+                }
+            }, 1000);
+        }
+
+        // === 做出选择 ===
+        async function makeChoice(index, choiceText) {
+            document.querySelectorAll('.choice-btn').forEach(b => b.disabled = true);
+
+            const story = document.getElementById('story');
+            const choiceMsg = document.createElement('div');
+            choiceMsg.className = 'msg msg-choice';
+            choiceMsg.textContent = choiceText;
+            story.appendChild(choiceMsg);
+
+            try {
+                const resp = await fetch('/api/choose', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ choice_index: index }),
+                });
+                const data = await resp.json();
+
+                if (data.effects) {
+                    const parts = [];
+                    for (const [k, v] of Object.entries(data.effects)) parts.push(`${k} ${v > 0 ? '+' : ''}${v}`);
+                    if (parts.length) {
+                        const effectMsg = document.createElement('div');
+                        effectMsg.className = 'msg-effect';
+                        effectMsg.textContent = parts.join('  ');
+                        story.appendChild(effectMsg);
+                    }
+                }
+                if (data.stats) updateStats(data.stats, data.effects);
+                if (data.portrait) updatePortrait(data.portrait);
+
+                document.getElementById('choices').innerHTML = '';
+                if (data.is_ending) {
+                    renderEnding(data);
+                } else {
+                    renderNode(data);
+                }
+            } catch (e) {
+                document.getElementById('choices').innerHTML =
+                    '<div class="loading">请求失败，请重试</div>';
+            }
+        }
+
+        // === 重置 ===
+        async function resetGame(mode = 'loop', auto = false) {
+            if (!auto) {
+                const msg = mode === 'fresh'
+                    ? '将开启全新旅程，循环次数会清零，确定吗？'
+                    : '确定要重新开始吗？当前进度将被清除。';
+                if (!confirm(msg)) return;
+            }
+            try {
+                const resp = await fetch('/api/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode: mode }),
+                });
+                const data = await resp.json();
+
+                // 保留前面的全部对话记录，追加循环分隔提示，不清空故事区
+                const story = document.getElementById('story');
+                const divider = document.createElement('div');
+                divider.className = 'msg-system';
+                if (mode === 'fresh') {
+                    divider.textContent = '—— 全新旅程开始 · 第 1 轮循环 ——';
+                } else {
+                    const spiritInfo = data.spirit_added ? ` · 精神值 +${data.spirit_added}` : '';
+                    divider.textContent = `—— 进入第 ${data.loop_count + 1} 轮循环${spiritInfo} ——`;
+                }
+                story.appendChild(divider);
+
+                lastPortraitKey = '';
+                init();
+            } catch (e) {
+                alert('重置失败，请重试');
+            }
+        }
+
+        function scrollBottom() {
+            const story = document.getElementById('story');
+            story.scrollTop = story.scrollHeight;
+        }
+
+        init();
+    </script>
+</body>
+</html>
